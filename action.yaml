@@ -1,0 +1,30 @@
+name: "Image Builder Action"
+description: "Builds OS images using image-builder (https://github.com/osbuild/image-builder-cli)"
+inputs:
+  distro:
+    description: "Linux distribution version to build for (e.g. fedora-41)"
+    required: true
+  image_type:
+    description: "Type of image to build (e.g. minimal-raw)"
+    required: true
+  image_builder_ref:
+    description: "Image Builder container image reference"
+    required: false
+    default: "ghcr.io/osbuild/image-builder-cli:latest"
+runs:
+  using: "composite"
+  steps:
+    - name: Create output directory
+      shell: bash
+      run: mkdir -p output
+    - name: Run image-builder container
+      shell: bash
+      run: |
+        sudo podman run --privileged --rm \
+          -v "${{ github.workspace }}/output:/output" \
+          "${{inputs.image_builder_ref}}" \
+          --distro "${{ inputs.distro }}" \
+          build "${{ inputs.image_type }}"
+    - name: Change ownership of output directory
+      shell: bash
+      run: sudo chown -R $(whoami):$(whoami) output
