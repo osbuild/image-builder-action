@@ -11,11 +11,20 @@ This GitHub Action builds OS images using the [image-builder-cli](https://github
 
 Run `podman run --rm --privileged ghcr.io/osbuild/image-builder-cli:latest list-images` to get the matrix of valid distributions and image types.
 
-- **distro** (string, required):
-  The Linux distribution version to build for. Example: `fedora-41`.
+- **distro** (string, optional):
+  The Linux distribution version to build for. Example: `fedora-44`.
 
 - **image_type** (string, required):
   The type of image to build. Example: `qcow2`.
+
+- **bootc_ref** (string, optional):
+  For a disk image, this is the container installed into the image. For the `bootc-generic-iso` type, this is the installer environment: the container that contains Anaconda.
+
+- **bootc_installer_payload_ref** (string, optional):
+  This is the bootable container Anaconda installs when building a `bootc-generic-iso` type.
+
+- **bootc_default_fs** (string, optional):
+  Necessary for Fedora. Example: `ext4`.
 
 - **image_build_ref** (string, optional)
   A reference to the image-builder container image to use for the build. Default: `ghcr.io/osbuild/image-builder-cli:latest`
@@ -25,7 +34,7 @@ Run `podman run --rm --privileged ghcr.io/osbuild/image-builder-cli:latest list-
 Below is an example of how you might use this action in a GitHub workflow:
 
 ```yaml
-name: Build a Fedora 41 minimal raw image
+name: Build a Fedora 44 minimal raw image
 
 on:
   push:
@@ -42,14 +51,34 @@ jobs:
       - name: Run Image Builder Action
         uses: osbuild/image-builder-action@v1
         with:
-          distro: fedora-41
+          distro: fedora-44
           image_type: minimal-raw
 
       - name: Upload Build Artifact
         uses: actions/upload-artifact@v4
         with:
           name: os-image
-          path: output/fedora-41-minimal-raw-x86_64/xz/disk.raw.xz
+          path: output/fedora-44-minimal-raw-x86_64/xz/disk.raw.xz
+```
+
+Bootc disk:
+
+```yaml
+- uses: osbuild/image-builder-action@v1
+  with:
+    bootc_ref: quay.io/fedora/fedora-bootc:44
+    bootc_default_fs: btrfs
+    image_type: qcow2
+```
+
+Bootc installer ISO:
+
+```yaml
+- uses: osbuild/image-builder-action@v1
+  with:
+    image_type: bootc-generic-iso
+    bootc_ref: quay.io/my-org/anaconda-installer:latest
+    bootc_installer_payload_ref: quay.io/centos-bootc/centos-bootc:stream10
 ```
 
 ## Project
