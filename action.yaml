@@ -3,10 +3,19 @@ description: "Builds OS images using image-builder (https://github.com/osbuild/i
 inputs:
   distro:
     description: "Linux distribution version to build for (e.g. fedora-41)"
-    required: true
+    required: false
   image_type:
     description: "Type of image to build (e.g. minimal-raw)"
     required: true
+  bootc_ref:
+    description: "For a disk image, the container installed into the image. For bootc-generic-iso, the installer environment (the container that contains Anaconda)."
+    required: false
+  bootc_installer_payload_ref:
+    description: "Used with bootc-generic-iso. This is the bootable container Anaconda installs."
+    required: false
+  bootc_default_fs:
+    description: "Passed as --bootc-default-fs (e.g. btrfs). Required for Fedora."
+    required: false
   image_builder_ref:
     description: "Image Builder container image reference"
     required: false
@@ -17,13 +26,30 @@ runs:
     - name: Create output directory
       shell: bash
       run: mkdir -p output
+    - name: Pull bootc images
+      if: inputs.bootc_ref != '' || inputs.bootc_installer_payload_ref != ''
+      shell: bash
+      env:
+        BOOTC_REF: ${{ inputs.bootc_ref }}
+        BOOTC_INSTALLER_PAYLOAD_REF: ${{ inputs.bootc_installer_payload_ref }}
+      run: |
+        if [[ -n "$BOOTC_REF" ]]; then
+          sudo podman pull "$BOOTC_REF"
+        fi
+        if [[ -n "$BOOTC_INSTALLER_PAYLOAD_REF" ]]; then
+          sudo podman pull "$BOOTC_INSTALLER_PAYLOAD_REF"
+        fi
     - name: Run image-builder container
       shell: bash
       run: |
         sudo podman run --privileged --rm \
           -v "${{ github.workspace }}/output:/output" \
-          "${{inputs.image_builder_ref}}" \
+          -v /var/lib/containers/storage:/var/lib/containers/storage \
+          "${{ inputs.image_builder_ref }}" \
           --distro "${{ inputs.distro }}" \
+          --bootc-ref "${{ inputs.bootc_ref }}" \
+          --bootc-installer-payload-ref "${{ inputs.bootc_installer_payload_ref }}" \
+          --bootc-default-fs "${{ inputs.bootc_default_fs }}" \
           build "${{ inputs.image_type }}"
     - name: Change ownership of output directory
       shell: bash
